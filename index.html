@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aplikasi Semakan Margin Penulisan Penyelidikan</title>
+  <!-- PDF.js untuk paparan dan semakan -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- PDF-lib untuk memodifikasi dan memuat turun PDF baharu -->
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f3f6fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --danger: #dc2626;
+      --grid: rgba(37, 99, 235, .35);
+      --margin: rgba(220, 38, 38, .95);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      background: var(--card);
+      color: var(--text);
+      padding: 24px 20px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+      border-bottom: 1px solid #e5e7eb;
+      transition: all 0.3s ease;
+    }
+
+    /* Membolehkan pengecilan header semasa mod pratonton penuh */
+    body.full-preview-active header {
+      padding: 12px 20px;
+    }
+    body.full-preview-active .header-logo {
+      height: 45px;
+    }
+    body.full-preview-active header h1 {
+      font-size: 20px;
+    }
+    body.full-preview-active .header-desc, 
+    body.full-preview-active .header-author {
+      display: none;
+    }
+
+    .header-content {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      max-width: 1500px;
+      margin: auto;
+      text-align: left;
+    }
+
+    .header-logo {
+      height: 75px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.08));
+      transition: all 0.3s ease;
+    }
+
+    .header-text {
+      display: flex;
+      flex-direction: column;
+    }
+
+    header h1 { 
+      margin: 0 0 4px; 
+      font-size: 26px; 
+      font-weight: 700; 
+      font-family: 'Poppins', sans-serif; 
+      letter-spacing: -0.5px; 
+      color: #1e3a8a; 
+      transition: all 0.3s ease;
+    }
+    
+    .header-author { 
+      font-size: 13px; 
+      color: var(--primary); 
+      margin: 0 0 6px; 
+      font-weight: 600; 
+    }
+    
+    .header-desc { 
+      margin: 0; 
+      color: var(--muted); 
+      font-size: 14px; 
+      line-height: 1.4;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 350px 1fr;
+      gap: 20px;
+      padding: 20px;
+      max-width: 1500px;
+      margin: auto;
+      align-items: start; /* Menghalang panel kiri daripada meregang mengikut ketinggian PDF viewer */
+      transition: all 0.3s ease;
+    }
+
+    /* Gaya Mod Pratonton Penuh */
+    .container.full-preview {
+      grid-template-columns: 1fr;
+      max-width: 100%;
+      padding: 10px;
+    }
+
+    .container.full-preview .panel {
+      display: none !important;
+    }
+
+    .panel, .viewer {
+      background: var(--card);
+      border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.08);
+    }
+
+    /* Mengaktifkan skrol bebas pada panel tetapan sahaja */
+    .panel { 
+      padding: 20px; 
+      max-height: calc(100vh - 40px); /* Menghadkan ketinggian maksimum panel mengikut skrin */
+      position: sticky; 
+      top: 20px; 
+      overflow-y: auto; /* Membenarkan skrol jika kandungan terlalu panjang */
+      scrollbar-width: thin;
+      scrollbar-color: #cbd5e1 transparent;
+    }
+
+    /* Kemasan bar skrol minimalis untuk Chrome, Safari, dan Edge */
+    .panel::-webkit-scrollbar {
+      width: 6px;
+    }
+    .panel::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .panel::-webkit-scrollbar-thumb {
+      background-color: #cbd5e1;
+      border-radius: 20px;
+    }
+
+    .panel h2 { margin: 0 0 16px; font-size: 20px; border-bottom: 2px solid #f3f4f6; padding-bottom: 10px;}
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin: 14px 0 6px;
+      font-size: 14px;
+    }
+    
+    .checkbox-label {
+      display: flex;
+      align-items: flex-start;
+      font-weight: 500;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+
+    input, select, button, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+      font-size: 14px;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 60px;
+    }
+
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+    }
+
+    input[type="checkbox"] { width: auto; transform: translateY(2px); margin-right: 8px; cursor: pointer; }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.45;
+      margin-top: 8px;
+    }
+
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 12px;
+    }
+
+    button:hover:not(:disabled) { background: var(--primary-hover); }
+
+    button.secondary { background: #374151; }
+    button.secondary:hover:not(:disabled) { background: #1f2937; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+
+    .viewer { padding: 20px; overflow: auto; min-height: 720px; position: relative; }
+
+    /* ---- BUTANG NAVIGASI SISI TERAPUNG (FLOATING SIDE NAV) ---- */
+    .side-nav-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 54px;
+      height: 54px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #e5e7eb;
+      border-radius: 50%;
+      font-size: 32px;
+      color: var(--primary);
+      display: none; /* Dihidupkan menerusi JS apabila fail dimuat naik */
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+      z-index: 100;
+      padding: 0;
+    }
+    
+    .side-nav-btn:hover:not(:disabled) {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+      transform: translateY(-50%) scale(1.1);
+    }
+
+    .side-nav-btn:active:not(:disabled) {
+      transform: translateY(-50%) scale(0.95);
+    }
+    
+    .side-nav-btn:disabled {
+      opacity: 0.25;
+      cursor: not-allowed;
+      background: #f3f4f6;
+      color: #9ca3af;
+    }
+    
+    .side-nav-btn.prev {
+      left: 15px;
+    }
+    
+    .side-nav-btn.next {
+      right: 15px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .toolbar.bottom {
+      margin-top: 16px;
+      margin-bottom: 0;
+      border-top: 1px solid #e5e7eb;
+      padding-top: 16px;
+    }
+
+    .toolbar button, .toolbar input { width: auto; margin-top: 0; }
+    .toolbar input { max-width: 90px; text-align: center; }
+
+    .zoom-value {
+      display: inline-block;
+      margin-top: 6px;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    .pdf-wrap {
+      position: relative;
+      width: fit-content;
+      margin: 0 auto 30px;
+      background: white;
+      box-shadow: 0 12px 35px rgba(0,0,0,.18);
+    }
+
+    canvas { display: block; }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .margin-line {
+      position: absolute;
+      background: var(--margin);
+      box-shadow: 0 0 0 1px rgba(255,255,255,.75);
+      z-index: 10;
+    }
+    .margin-line.v { width: 2px; top: 0; bottom: 0; }
+    .margin-line.h { height: 2px; left: 0; right: 0; }
+
+    .grid {
+      position: absolute;
+      inset: 0;
+      opacity: .85;
+      background-image:
+        linear-gradient(to right, var(--grid) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+    }
+
+    .label-box {
+      position: absolute;
+      background: rgba(255,255,255,.92);
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 12px;
+      color: #111827;
+      font-weight: 600;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      z-index: 20;
+    }
+
+    .status {
+      padding: 12px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 10px;
+      margin-top: 16px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .preset {
+      background: #eef2ff;
+      border: 1px solid #c7d2fe;
+      padding: 12px;
+      border-radius: 10px;
+      margin: 12px 0;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    /* ---- PELAPORAN KAD STYLES ---- */
+    .report-box {
+      margin-top: 20px;
+      padding: 15px;
+      border: 1px solid #fca5a5;
+      border-radius: 8px;
+      background: #fef2f2;
+      display: none;
+      max-height: 450px;
+      overflow-y: auto;
+    }
+    
+    .report-box h3 { margin: 0 0 10px; font-size: 15px; color: var(--danger); font-weight: 700; }
+    
+    .report-list { margin: 0 0 15px 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    
+    .report-card {
+      background: #ffffff;
+      border: 1px solid #fecaca;
+      border-left: 4px solid var(--danger);
+      border-radius: 6px;
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .report-card:hover { transform: translateX(2px); box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-color: #f87171;}
+    .report-card-title { font-size: 13px; font-weight: 700; color: #111827; margin-bottom: 6px; display: flex; justify-content: space-between;}
+    .report-card-title span { color: var(--primary); font-size: 11px; text-decoration: underline; }
+    
+    .badge {
+      display: inline-block;
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-right: 4px;
+      margin-top: 4px;
+    }
+    .badge-text { background: #fef08a; color: #854d0e; border: 1px solid #fde047; }
+    .badge-visual { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+    
+    .info-card {
+      background: #f3f4f6; border: 1px solid #e5e7eb; padding: 10px; border-radius: 6px; font-size: 12px; color: #4b5563; margin-top: 10px;
+    }
+    .success-card {
+      background: #ecfdf5; border: 1px solid #a7f3d0; border-left: 4px solid #10b981; padding: 12px; border-radius: 6px; font-size: 13px; color: #065f46; font-weight: 600;
+    }
+
+    .btn-auto-check { background: #059669; margin-top: 16px; }
+    .btn-auto-check:hover:not(:disabled) { background: #047857; }
+    
+    .btn-download { background: #dc2626; margin-top: 10px; display: none; }
+    .btn-download:hover:not(:disabled) { background: #b91c1c; }
+
+    .advanced-settings {
+      background: #fafaf9;
+      border: 1px solid #e7e5e4;
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 15px;
+    }
+
+    @media (max-width: 900px) {
+      .container { grid-template-columns: 1fr; }
+      .panel { position: static; max-height: none; }
+      .header-content { flex-direction: column; text-align: center; }
+      .side-nav-btn { display: none !important; } /* Sembunyi butang sisi pada skrin kecil */
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <img src="https://raw.githubusercontent.com/ictlshaks-wq/LOGODGURU/main/LogoIPGKDRI.png.png" alt="Logo IPGKDRI" class="header-logo" onerror="this.onerror=null; this.src='https://github.com/ictlshaks-wq/LOGODGURU/blob/main/LogoIPGKDRI.png.png?raw=true';">
+      <div class="header-text">
+        <h1>Aplikasi Semakan Margin Penulisan Penyelidikan</h1>
+        <p class="header-author">(Aplikasi ini dibangunkan oleh PISP IPGKDRI 2024-2026)</p>
+        <p class="header-desc">Muat naik PDF, laraskan margin dalam cm dan lihat garis semakan terus pada halaman.</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="panel">
+      <h2>Tetapan Semakan</h2>
+
+      <label for="fileInput">Muat naik fail PDF</label>
+      <input type="file" id="fileInput" accept="application/pdf" />
+      <div class="hint">Fail diproses dalam browser sahaja. Tidak dihantar ke server.</div>
+
+      <div class="preset">
+        <strong>Preset tesis biasa:</strong><br>
+        Kiri 3.81 cm, kanan 2.54 cm, atas 2.54 cm, bawah 2.54 cm.
+      </div>
+
+      <button onclick="useThesisPreset()">Guna Preset Margin Tesis</button>
+
+      <div class="row">
+        <div>
+          <label for="leftMargin">Kiri (cm)</label>
+          <input type="number" id="leftMargin" value="3.81" step="0.01" min="0" />
+        </div>
+        <div>
+          <label for="rightMargin">Kanan (cm)</label>
+          <input type="number" id="rightMargin" value="2.54" step="0.01" min="0" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="topMargin">Atas (cm)</label>
+          <input type="number" id="topMargin" value="2.54" step="0.01" min="0" />
+        </div>
+        <div>
+          <label for="bottomMargin">Bawah (cm)</label>
+          <input type="number" id="bottomMargin" value="2.54" step="0.01" min="0" />
+        </div>
+      </div>
+
+      <label for="scaleInput">Zum paparan</label>
+      <input type="range" id="scaleInput" min="0.5" max="3.0" step="0.1" value="1.3" />
+      <span class="zoom-value" id="zoomValue">130%</span>
+
+      <div class="row" style="margin-top: 10px;">
+        <label class="checkbox-label"><input type="checkbox" id="showGrid" checked /> Papar gridline</label>
+        <label class="checkbox-label"><input type="checkbox" id="showLabels" checked /> Papar label ukuran</label>
+      </div>
+
+      <label class="checkbox-label" style="color: #2563eb; margin-top: 8px;">
+        <input type="checkbox" id="measureToolToggle" /> 
+        <div>
+          Aktifkan Alat Ukur Jarak<br>
+          <span style="font-size: 11px; font-weight: normal; color: #6b7280;">Klik dan tarik (drag) pada PDF untuk mengukur jarak.</span>
+        </div>
+      </label>
+
+      <button class="secondary" onclick="renderPage()">Kemas Kini Paparan</button>
+
+      <!-- SETTING AUTO SEMAK -->
+      <div class="advanced-settings">
+        <h3 style="font-size: 14px; margin: 0 0 10px; color: #1f2937;">Tetapan Imbasan</h3>
+        <label for="excludePages" style="margin-top: 0;">Muka Surat Dikecualikan (Cth: 1, 3, 5-8)</label>
+        <input type="text" id="excludePages" placeholder="Contoh: 1, 3, 5-8" />
+        
+        <label class="checkbox-label" style="color: #047857;">
+          <input type="checkbox" id="visualCheck" checked /> 
+          <div>
+            Semakan Visual (Piksel)<br>
+            <span style="font-size: 11px; font-weight: normal; color: #6b7280;">Boleh mengesan garisan jadual dan gambar yang terkeluar margin.</span>
+          </div>
+        </label>
+
+        <label class="checkbox-label" id="ignoreTopBottomWrapper">
+          <input type="checkbox" id="ignoreTopBottom" checked /> 
+          <div>
+            Abaikan Semakan Atas & Bawah<br>
+            <span style="font-size: 11px; font-weight: normal; color: #6b7280;">Abaikan nombor muka surat (termasuk roman) di bahagian atas/bawah.</span>
+          </div>
+        </label>
+      </div>
+
+      <button id="autoCheckBtn" class="btn-auto-check" onclick="runAutoCheck()">Semak Automatik Semua Halaman</button>
+
+      <div id="reportContainer" class="report-box">
+        <h3>Pelaporan Semakan Margin</h3>
+        <div id="reportList" class="report-list"></div>
+        
+        <!-- BAHAGIAN ULASAN (SEBELUM MUAT TURUN) -->
+        <div id="reportForm" style="display: none; margin-top: 15px; border-top: 1px dashed #fca5a5; padding-top: 15px;">
+          <h4 style="font-size: 13px; margin: 0 0 10px; color: #991b1b;">Maklumat Laporan & Ulasan</h4>
+          
+          <label for="reviewerName" style="margin-top: 0; font-size: 12px;">Disemak Oleh</label>
+          <input type="text" id="reviewerName" placeholder="Nama Penyemak / Pemeriksa" style="padding: 8px; margin-bottom: 8px;" />
+
+          <label for="reviewDate" style="font-size: 12px;">Tarikh Semakan</label>
+          <input type="date" id="reviewDate" style="padding: 8px; margin-bottom: 8px;" />
+
+          <label for="reviewComment" style="font-size: 12px;">Ulasan / Komen Tambahan</label>
+          <textarea id="reviewComment" rows="3" placeholder="Tuliskan ulasan tambahan untuk rujukan pelajar di sini..." style="padding: 8px;"></textarea>
+        </div>
+
+        <button id="downloadPdfBtn" class="btn-download" onclick="downloadAnnotatedPDF()">Muat Turun PDF Laporan & Bertanda</button>
+      </div>
+
+      <div class="status" id="statusBox">
+        Sila muat naik fail PDF untuk mula menyemak margin.
+      </div>
+    </section>
+
+    <section class="viewer">
+      <!-- BUTANG NAVIGASI SISI TERAPUNG -->
+      <button id="sidePrevBtn" class="side-nav-btn prev" onclick="prevPage()" disabled>&lsaquo;</button>
+      <button id="sideNextBtn" class="side-nav-btn next" onclick="nextPage()" disabled>&rsaquo;</button>
+
+      <div class="toolbar">
+        <button class="prevBtn" onclick="prevPage()" disabled>← Halaman Sebelum</button>
+        <span style="font-size: 14px; font-weight: 600;">Halaman</span>
+        <input id="pageNum" type="number" value="1" min="1" onchange="goToPage()" />
+        <span id="pageCount" style="font-size: 14px; font-weight: 600;">/ 0</span>
+        <button class="nextBtn" onclick="nextPage()" disabled>Halaman Seterusnya →</button>
+        <!-- Butang Pratonton Penuh -->
+        <button id="fullPreviewBtn" class="secondary" onclick="toggleFullPreview()" style="margin-left: 10px; width: auto;">Pratonton Penuh</button>
+      </div>
+
+      <div id="pdfContainer" class="pdf-wrap" style="display:none;">
+        <canvas id="pdfCanvas"></canvas>
+        <div id="overlay" class="overlay"></div>
+        <canvas id="measureCanvas" class="overlay" style="z-index: 15; pointer-events: none;"></canvas>
+      </div>
+
+      <div class="toolbar bottom">
+        <button class="prevBtn" onclick="prevPage()" disabled>← Halaman Sebelum</button>
+        <span id="bottomPageInfo" style="font-size: 14px; font-weight: 600;">Halaman 0 / 0</span>
+        <button class="nextBtn" onclick="nextPage()" disabled>Halaman Seterusnya →</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Konfigurasi pekerja PDF.js
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    let pdfDoc = null;
+    let currentPage = 1;
+    let totalPages = 0;
+    let currentViewport = null;
+    let originalPdfBytes = null; // Menyimpan data PDF asal untuk modifikasi
+    let globalScanResults = []; // Menyimpan log ralat koordinat
+    let isFullPreview = false; // Status pratonton penuh
+
+    const cmToPt = cm => cm * 28.3464567;
+
+    document.querySelectorAll('#leftMargin,#rightMargin,#topMargin,#bottomMargin,#showGrid,#showLabels')
+      .forEach(el => el.addEventListener('input', drawOverlay));
+
+    document.getElementById('scaleInput').addEventListener('input', () => {
+      updateZoomLabel();
+      renderPage();
+    });
+
+    function updateZoomLabel() {
+      const scale = Number(document.getElementById('scaleInput').value);
+      document.getElementById('zoomValue').textContent = `${Math.round(scale * 100)}%`;
+    }
+
+    // Fungsi Pratonton Penuh
+    function toggleFullPreview() {
+      const container = document.querySelector('.container');
+      const btn = document.getElementById('fullPreviewBtn');
+      if (!container || !btn) return;
+      
+      isFullPreview = !isFullPreview;
+      if (isFullPreview) {
+        container.classList.add('full-preview');
+        document.body.classList.add('full-preview-active');
+        btn.textContent = 'Keluar Pratonton Penuh';
+        btn.classList.remove('secondary');
+        btn.style.background = '#dc2626'; // Merah untuk keluar
+        btn.style.borderColor = '#dc2626';
+        btn.style.color = 'white';
+      } else {
+        container.classList.remove('full-preview');
+        document.body.classList.remove('full-preview-active');
+        btn.textContent = 'Pratonton Penuh';
+        btn.classList.add('secondary');
+        btn.style.background = ''; // reset
+        btn.style.borderColor = '';
+        btn.style.color = '';
+      }
+      
+      // Kemas kini lukisan semula sekiranya lebar grid berubah
+      setTimeout(() => {
+        renderPage();
+      }, 150);
+    }
+
+    document.getElementById('fileInput').addEventListener('change', async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      if (file.type !== 'application/pdf') {
+        alert('Sila pilih fail PDF sahaja.');
+        return;
+      }
+
+      const arrayBuffer = await file.arrayBuffer();
+      originalPdfBytes = arrayBuffer.slice(0); // Simpan salinan asal untuk penjanaan PDF kemudian
+      
+      pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      totalPages = pdfDoc.numPages;
+      currentPage = 1;
+
+      document.getElementById('pageNum').value = 1;
+      document.getElementById('pageNum').max = totalPages;
+      document.getElementById('pageCount').textContent = `/ ${totalPages}`;
+      updateNavButtons();
+      document.getElementById('pdfContainer').style.display = 'block';
+      document.getElementById('downloadPdfBtn').style.display = 'none';
+      if(document.getElementById('reportForm')) document.getElementById('reportForm').style.display = 'none';
+
+      await renderPage();
+    });
+
+    function useThesisPreset() {
+      document.getElementById('leftMargin').value = 3.81;
+      document.getElementById('rightMargin').value = 2.54;
+      document.getElementById('topMargin').value = 2.54;
+      document.getElementById('bottomMargin').value = 2.54;
+      drawOverlay();
+    }
+
+    async function renderPage() {
+      if (!pdfDoc) return;
+
+      const page = await pdfDoc.getPage(currentPage);
+      const scale = Number(document.getElementById('scaleInput').value);
+      const viewport = page.getViewport({ scale });
+      currentViewport = viewport;
+
+      const canvas = document.getElementById('pdfCanvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      document.getElementById('pdfContainer').style.width = `${viewport.width}px`;
+      document.getElementById('pdfContainer').style.height = `${viewport.height}px`;
+
+      const mCanvas = document.getElementById('measureCanvas');
+      mCanvas.width = viewport.width;
+      mCanvas.height = viewport.height;
+
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      await drawOverlay();
+      updateStatus(page.view);
+      updateNavButtons();
+    }
+
+    async function drawOverlay() {
+      if (!pdfDoc || !currentViewport) return;
+      
+      const page = await pdfDoc.getPage(currentPage);
+      const scale = Number(document.getElementById('scaleInput').value);
+      const view = page.view;
+      const pageWidthPt = view[2] - view[0];
+      const pageHeightPt = view[3] - view[1];
+      const overlay = document.getElementById('overlay');
+      
+      overlay.innerHTML = '';
+
+      const w = pageWidthPt * scale;
+      const h = pageHeightPt * scale;
+
+      const left = cmToPt(Number(document.getElementById('leftMargin').value)) * scale;
+      const right = w - cmToPt(Number(document.getElementById('rightMargin').value)) * scale;
+      const top = cmToPt(Number(document.getElementById('topMargin').value)) * scale;
+      const bottom = h - cmToPt(Number(document.getElementById('bottomMargin').value)) * scale;
+
+      if (document.getElementById('showGrid').checked) {
+        const grid = document.createElement('div');
+        grid.className = 'grid';
+        const gridPx = cmToPt(1) * scale;
+        grid.style.backgroundSize = `${gridPx}px ${gridPx}px`;
+        overlay.appendChild(grid);
+      }
+
+      addLine('v', left, 'left');
+      addLine('v', right, 'left');
+      addLine('h', top, 'top');
+      addLine('h', bottom, 'top');
+
+      if (document.getElementById('showLabels').checked) {
+        addLabel(`Kiri ${document.getElementById('leftMargin').value} cm`, left + 6, 8);
+        addLabel(`Kanan ${document.getElementById('rightMargin').value} cm`, right - 110, 8);
+        addLabel(`Atas ${document.getElementById('topMargin').value} cm`, 8, top + 6);
+        addLabel(`Bawah ${document.getElementById('bottomMargin').value} cm`, 8, bottom - 28);
+      }
+
+      function addLine(type, value, prop) {
+        const line = document.createElement('div');
+        line.className = `margin-line ${type}`;
+        line.style[prop] = `${value}px`;
+        overlay.appendChild(line);
+      }
+
+      function addLabel(text, x, y) {
+        const label = document.createElement('div');
+        label.className = 'label-box';
+        label.textContent = text;
+        label.style.left = `${x}px`;
+        label.style.top = `${y}px`;
+        overlay.appendChild(label);
+      }
+    }
+
+    function updateStatus(view) {
+      const pageWidthCm = ((view[2] - view[0]) / 28.3464567).toFixed(2);
+      const pageHeightCm = ((view[3] - view[1]) / 28.3464567).toFixed(2);
+      document.getElementById('statusBox').innerHTML = `
+        <strong>Fail PDF berjaya dipaparkan.</strong><br>
+        Halaman semasa: ${currentPage} daripada ${totalPages}<br>
+        Anggaran saiz halaman: ${pageWidthCm} cm × ${pageHeightCm} cm<br>
+        Garis merah menunjukkan sempadan margin yang ditetapkan.
+      `;
+    }
+
+    // Kemaskini butang navigasi (termasuk navigasi sisi)
+    function updateNavButtons() {
+      const hasDoc = !!pdfDoc;
+
+      // Butang navigasi toolbar biasa
+      document.querySelectorAll('.prevBtn').forEach(btn => btn.disabled = !hasDoc || currentPage <= 1);
+      document.querySelectorAll('.nextBtn').forEach(btn => btn.disabled = !hasDoc || currentPage >= totalPages);
+      document.getElementById('bottomPageInfo').textContent = hasDoc ? `Halaman ${currentPage} / ${totalPages}` : 'Halaman 0 / 0';
+
+      // Butang navigasi sisi terapung
+      const sidePrev = document.getElementById('sidePrevBtn');
+      const sideNext = document.getElementById('sideNextBtn');
+      if (sidePrev && sideNext) {
+        if (hasDoc) {
+          sidePrev.style.display = 'flex';
+          sideNext.style.display = 'flex';
+          sidePrev.disabled = currentPage <= 1;
+          sideNext.disabled = currentPage >= totalPages;
+        } else {
+          sidePrev.style.display = 'none';
+          sideNext.style.display = 'none';
+        }
+      }
+    }
+
+    async function prevPage() {
+      if (!pdfDoc || currentPage <= 1) return;
+      currentPage--;
+      document.getElementById('pageNum').value = currentPage;
+      await renderPage();
+    }
+
+    async function nextPage() {
+      if (!pdfDoc || currentPage >= totalPages) return;
+      currentPage++;
+      document.getElementById('pageNum').value = currentPage;
+      await renderPage();
+    }
+
+    async function goToPage() {
+      if (!pdfDoc) return;
+      const page = Number(document.getElementById('pageNum').value);
+      if (page < 1 || page > totalPages) return;
+      currentPage = page;
+      await renderPage();
+    }
+
+    async function goToSpecificPage(num) {
+      document.getElementById('pageNum').value = num;
+      currentPage = num;
+      await renderPage();
+    }
+
+    function parseExcludedPages(inputStr) {
+      const pages = new Set();
+      if (!inputStr || !inputStr.trim()) return pages;
+      
+      const parts = inputStr.split(',');
+      for (let part of parts) {
+        part = part.trim();
+        if (part.includes('-')) {
+          const bounds = part.split('-');
+          const start = parseInt(bounds[0], 10);
+          const end = parseInt(bounds[1], 10);
+          if (!isNaN(start) && !isNaN(end) && start <= end) {
+            for (let i = start; i <= end; i++) pages.add(i);
+          }
+        } else {
+          const num = parseInt(part, 10);
+          if (!isNaN(num)) pages.add(num);
+        }
+      }
+      return pages;
+    }
+
+    // FUNGSI SEMAKAN AUTOMATIK KESELURUHAN PDF
+    async function runAutoCheck() {
+      if (!pdfDoc) {
+        alert('Sila muat naik fail PDF terlebih dahulu.');
+        return;
+      }
+
+      const btn = document.getElementById('autoCheckBtn');
+      btn.disabled = true;
+      btn.textContent = 'Menyemak... Sila tunggu (Mungkin mengambil masa)';
+      document.getElementById('downloadPdfBtn').style.display = 'none';
+      if(document.getElementById('reportForm')) document.getElementById('reportForm').style.display = 'none';
+
+      const reportList = document.getElementById('reportList');
+      reportList.innerHTML = '';
+      const reportContainer = document.getElementById('reportContainer');
+      reportContainer.style.display = 'block';
+      reportContainer.style.borderColor = '#fca5a5';
+      reportContainer.style.backgroundColor = '#fef2f2';
+
+      const excludeInput = document.getElementById('excludePages').value;
+      const excludedPages = parseExcludedPages(excludeInput);
+      const isVisualCheck = document.getElementById('visualCheck').checked;
+      const ignoreTopBottom = document.getElementById('ignoreTopBottom').checked;
+
+      const leftMarginPt = cmToPt(Number(document.getElementById('leftMargin').value));
+      const rightMarginPtCm = cmToPt(Number(document.getElementById('rightMargin').value));
+      const topMarginPtCm = cmToPt(Number(document.getElementById('topMargin').value));
+      const bottomMarginPtCm = cmToPt(Number(document.getElementById('bottomMargin').value));
+
+      let issuesFound = false;
+      let checkedPagesCount = 0;
+      globalScanResults = []; 
+
+      const offCanvas = document.createElement('canvas');
+      const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
+
+      for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+        if (excludedPages.has(pageNum)) continue;
+        checkedPagesCount++;
+
+        const page = await pdfDoc.getPage(pageNum);
+        const view = page.view; 
+        const pageWidth = view[2] - view[0];
+        const pageHeight = view[3] - view[1];
+        
+        let pageIssueDetails = new Set();
+        let errorBoxes = []; 
+        
+        const textTolerance = 2.0;   
+        const visualTolerance = 2.5; 
+
+        // 1. SEMAKAN TEKS
+        const rightMarginPt = pageWidth - rightMarginPtCm;
+        const topMarginPt = pageHeight - topMarginPtCm;
+        const bottomMarginPt = bottomMarginPtCm;
+
+        const textContent = await page.getTextContent();
+        
+        for (const item of textContent.items) {
+          if (!item.str || item.str.trim() === '') continue; 
+          const x = item.transform[4];
+          const y = item.transform[5];
+          const width = item.width;
+          const height = item.height;
+
+          if (x < leftMarginPt - textTolerance) {
+            pageIssueDetails.add('Kiri');
+            errorBoxes.push({x, y, w: width, h: height, type: 'text'});
+          }
+          if (x + width > rightMarginPt + textTolerance) {
+            pageIssueDetails.add('Kanan');
+            errorBoxes.push({x, y, w: width, h: height, type: 'text'});
+          }
+          
+          if (!ignoreTopBottom) {
+            if (y < bottomMarginPt - textTolerance) {
+              pageIssueDetails.add('Bawah');
+              errorBoxes.push({x, y, w: width, h: height, type: 'text'});
+            }
+            if (y + height > topMarginPt + textTolerance) {
+              pageIssueDetails.add('Atas');
+              errorBoxes.push({x, y, w: width, h: height, type: 'text'});
+            }
+          }
+        }
+
+        // 2. SEMAKAN VISUAL
+        if (isVisualCheck) {
+          const viewport = page.getViewport({ scale: 1.0 }); 
+          offCanvas.width = viewport.width;
+          offCanvas.height = viewport.height;
+          
+          offCtx.fillStyle = '#ffffff'; 
+          offCtx.fillRect(0, 0, offCanvas.width, offCanvas.height);
+          
+          await page.render({ canvasContext: offCtx, viewport: viewport }).promise;
+          const imgData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height).data;
+          const w = offCanvas.width;
+          const h = offCanvas.height;
+
+          const checkPixelArea = (startX, startY, endX, endY) => {
+            startX = Math.max(0, Math.floor(startX));
+            endX = Math.min(w, Math.floor(endX));
+            startY = Math.max(0, Math.floor(startY));
+            endY = Math.min(h, Math.floor(endY));
+
+            for (let y = startY; y < endY; y += 2) {
+              for (let x = startX; x < endX; x += 2) {
+                const i = (y * w + x) * 4;
+                if (imgData[i] < 240 && imgData[i+1] < 240 && imgData[i+2] < 240) {
+                  return true;
+                }
+              }
+            }
+            return false;
+          };
+
+          if (checkPixelArea(0, 0, leftMarginPt - visualTolerance, h)) {
+            pageIssueDetails.add('Kiri (Visual)');
+            errorBoxes.push({x: 0, y: 0, w: leftMarginPt, h: pageHeight, type: 'visual'});
+          }
+          if (checkPixelArea(w - rightMarginPtCm + visualTolerance, 0, w, h)) {
+            pageIssueDetails.add('Kanan (Visual)');
+            errorBoxes.push({x: pageWidth - rightMarginPtCm, y: 0, w: rightMarginPtCm, h: pageHeight, type: 'visual'});
+          }
+          
+          if (!ignoreTopBottom) {
+            if (checkPixelArea(0, 0, w, topMarginPtCm - visualTolerance)) {
+              pageIssueDetails.add('Atas (Visual)');
+              errorBoxes.push({x: 0, y: pageHeight - topMarginPtCm, w: pageWidth, h: topMarginPtCm, type: 'visual'});
+            }
+            if (checkPixelArea(0, h - bottomMarginPtCm + visualTolerance, w, h)) {
+              pageIssueDetails.add('Bawah (Visual)');
+              errorBoxes.push({x: 0, y: 0, w: pageWidth, h: bottomMarginPtCm, type: 'visual'});
+            }
+          }
+        }
+
+        if (pageIssueDetails.size > 0) {
+          issuesFound = true;
+          globalScanResults.push({ pageNum: pageNum, issues: Array.from(pageIssueDetails), boxes: errorBoxes });
+          
+          let textIssues = [];
+          let visualIssues = [];
+          Array.from(pageIssueDetails).forEach(issue => {
+            if(issue.includes('Visual')) visualIssues.push(issue.replace(' (Visual)', ''));
+            else textIssues.push(issue);
+          });
+
+          const card = document.createElement('div');
+          card.className = 'report-card';
+          card.onclick = () => goToSpecificPage(pageNum);
+
+          let html = `<div class="report-card-title">Halaman ${pageNum} <span>Lihat &rarr;</span></div>`;
+          if (textIssues.length > 0) {
+            html += `<span class="badge badge-text">Teks: ${textIssues.join(', ')}</span>`;
+          }
+          if (visualIssues.length > 0) {
+            html += `<span class="badge badge-visual">Jadual/Gambar: ${visualIssues.join(', ')}</span>`;
+          }
+          
+          card.innerHTML = html;
+          reportList.appendChild(card);
+        }
+
+        await new Promise(res => setTimeout(res, 5));
+      }
+
+      if (!issuesFound) {
+        reportContainer.style.borderColor = '#6ee7b7';
+        reportContainer.style.backgroundColor = '#ecfdf5';
+        
+        const successCard = document.createElement('div');
+        successCard.className = 'success-card';
+        successCard.innerHTML = `&#10004; Tiada masalah margin ditemui pada ${checkedPagesCount} halaman yang disemak.`;
+        reportList.appendChild(successCard);
+      } else {
+        if(document.getElementById('reportForm')) {
+            document.getElementById('reportForm').style.display = 'block';
+            document.getElementById('reviewDate').valueAsDate = new Date();
+        }
+        document.getElementById('downloadPdfBtn').style.display = 'block';
+      }
+
+      if (excludedPages.size > 0) {
+         const infoCard = document.createElement('div');
+         infoCard.className = 'info-card';
+         infoCard.innerHTML = `&#8505; Sebanyak <strong>${excludedPages.size} halaman</strong> telah dikecualikan daripada semakan ini.`;
+         reportList.appendChild(infoCard);
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Semak Automatik Semua Halaman';
+    }
+
+    // --- FUNGSI JANA PDF LAPORAN & ANOTASI ---
+    async function downloadAnnotatedPDF() {
+      if (!originalPdfBytes || globalScanResults.length === 0) return;
+      
+      const btn = document.getElementById('downloadPdfBtn');
+      const originalText = btn.textContent;
+      btn.textContent = 'Menjana PDF... Sila tunggu';
+      btn.disabled = true;
+
+      try {
+        const { PDFDocument, rgb, StandardFonts } = PDFLib;
+        const originalDoc = await PDFDocument.load(originalPdfBytes);
+        const newDoc = await PDFDocument.create();
+        
+        const errorPageIndices = globalScanResults.map(result => result.pageNum - 1);
+        const copiedPages = await newDoc.copyPages(originalDoc, errorPageIndices);
+
+        copiedPages.forEach((page, index) => {
+          newDoc.addPage(page);
+          const result = globalScanResults[index];
+          for (const box of result.boxes) {
+            if (box.type === 'text') {
+              page.drawRectangle({
+                x: box.x, y: box.y, width: box.w, height: box.h,
+                borderColor: rgb(1, 0, 0), borderWidth: 1.5
+              });
+            } else if (box.type === 'visual') {
+              page.drawRectangle({
+                x: box.x, y: box.y, width: box.w, height: box.h,
+                color: rgb(1, 0, 0), opacity: 0.15
+              });
+            }
+          }
+        });
+
+        const font = await newDoc.embedFont(StandardFonts.Helvetica);
+        const boldFont = await newDoc.embedFont(StandardFonts.HelveticaBold);
+        
+        let coverPageIndex = 0;
+        let coverPage = newDoc.insertPage(coverPageIndex);
+        let { width, height } = coverPage.getSize();
+        let yPos = height - 60;
+
+        // Dapat maklumat daripada UI input
+        const reviewerName = document.getElementById('reviewerName').value || '-';
+        const reviewDate = document.getElementById('reviewDate').value || '-';
+        const reviewComment = document.getElementById('reviewComment').value || 'Tiada ulasan';
+
+        // Cetak Tajuk & Maklumat Penyemak
+        coverPage.drawText('LAPORAN SEMAKAN FORMAT TESIS', { x: 50, y: yPos, size: 18, font: boldFont, color: rgb(0.1, 0.3, 0.8) });
+        yPos -= 35;
+        
+        coverPage.drawText('Disemak Oleh:', { x: 50, y: yPos, size: 11, font: boldFont, color: rgb(0.3, 0.3, 0.3) });
+        coverPage.drawText(reviewerName, { x: 140, y: yPos, size: 11, font: font });
+        yPos -= 20;
+
+        coverPage.drawText('Tarikh:', { x: 50, y: yPos, size: 11, font: boldFont, color: rgb(0.3, 0.3, 0.3) });
+        coverPage.drawText(reviewDate, { x: 140, y: yPos, size: 11, font: font });
+        yPos -= 20;
+
+        coverPage.drawText('Ulasan:', { x: 50, y: yPos, size: 11, font: boldFont, color: rgb(0.3, 0.3, 0.3) });
+        
+        // Fungsi helper untuk word-wrap bagi catatan panjang
+        const wrapText = (text, maxWidth, fontRef, fontSize) => {
+          const words = text.split(' ');
+          let lines = [];
+          let currentLine = '';
+          for (let word of words) {
+            const testLine = currentLine ? currentLine + ' ' + word : word;
+            const textWidth = fontRef.widthOfTextAtSize(testLine, fontSize);
+            if (textWidth < maxWidth) {
+              currentLine = testLine;
+            } else {
+              if(currentLine) lines.push(currentLine);
+              currentLine = word;
+            }
+          }
+          if (currentLine) lines.push(currentLine);
+          return lines;
+        };
+
+        const commentLines = wrapText(reviewComment, width - 110, font, 11);
+        for (const line of commentLines) {
+            coverPage.drawText(line, { x: 140, y: yPos, size: 11, font: font });
+            yPos -= 15;
+        }
+        
+        // Garis pemisah
+        yPos -= 10;
+        coverPage.drawLine({ start: { x: 50, y: yPos }, end: { x: width - 50, y: yPos }, thickness: 1, color: rgb(0.8, 0.8, 0.8) });
+        yPos -= 25;
+
+        // Maklumat Ralat
+        coverPage.drawText(`Jumlah ralat ditemui: ${globalScanResults.length} halaman`, { x: 50, y: yPos, size: 12, font: boldFont, color: rgb(0.8, 0.1, 0.1) });
+        yPos -= 15;
+        coverPage.drawText('Sila rujuk muka surat lampiran berkotak merah untuk memperbetulkan margin.', { x: 50, y: yPos, size: 10, font: font, color: rgb(0.4, 0.4, 0.4) });
+        yPos -= 30;
+
+        // Senarai Halaman Ralat
+        for (const result of globalScanResults) {
+          if (yPos < 50) {
+            coverPageIndex++;
+            coverPage = newDoc.insertPage(coverPageIndex);
+            yPos = height - 60;
+          }
+          const text = `Halaman Asal ${result.pageNum}: Terkeluar ${result.issues.join(', ')}`;
+          coverPage.drawText(text, { x: 50, y: yPos, size: 11, font: font, color: rgb(0.1, 0.1, 0.1) });
+          yPos -= 18;
+        }
+
+        const modifiedPdfBytes = await newDoc.save();
+        const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Laporan_Semakan_Tesis_Ringkas.pdf';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+      } catch (error) {
+        console.error("Ralat menjana PDF:", error);
+        alert("Berlaku ralat semasa menjana PDF. Sila cuba lagi.");
+      } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    // --- ALAT UKUR JARAK (MEASUREMENT TOOL) ---
+    const measureCanvas = document.getElementById('measureCanvas');
+    const measureCtx = measureCanvas.getContext('2d');
+    let isMeasuring = false;
+    let measureStart = {x: 0, y: 0};
+
+    function clearMeasure() {
+      measureCtx.clearRect(0, 0, measureCanvas.width, measureCanvas.height);
+    }
+
+    document.getElementById('measureToolToggle').addEventListener('change', (e) => {
+      measureCanvas.style.pointerEvents = e.target.checked ? 'auto' : 'none';
+      if (e.target.checked) {
+        measureCanvas.style.cursor = 'crosshair';
+      } else {
+        clearMeasure();
+      }
+    });
+
+    measureCanvas.addEventListener('mousedown', (e) => {
+      const rect = measureCanvas.getBoundingClientRect();
+      measureStart = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      isMeasuring = true;
+    });
+
+    measureCanvas.addEventListener('mousemove', (e) => {
+      if (!isMeasuring) return;
+      const rect = measureCanvas.getBoundingClientRect();
+      let current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      
+      const absDx = Math.abs(current.x - measureStart.x);
+      const absDy = Math.abs(current.y - measureStart.y);
+      if (absDx > absDy) { current.y = measureStart.y; } else { current.x = measureStart.x; }
+
+      clearMeasure();
+      
+      measureCtx.beginPath();
+      measureCtx.moveTo(measureStart.x, measureStart.y);
+      measureCtx.lineTo(current.x, current.y);
+      measureCtx.strokeStyle = '#2563eb';
+      measureCtx.lineWidth = 2;
+      measureCtx.setLineDash([5, 5]);
+      measureCtx.stroke();
+      measureCtx.setLineDash([]);
+      
+      const dx = current.x - measureStart.x;
+      const dy = current.y - measureStart.y;
+      const distPx = Math.hypot(dx, dy);
+      const scale = Number(document.getElementById('scaleInput').value);
+      const distCm = (distPx / scale) / 28.3464567;
+
+      const text = `${distCm.toFixed(2)} cm`;
+      measureCtx.font = 'bold 13px Inter, Arial';
+      const textMetrics = measureCtx.measureText(text);
+      const textWidth = textMetrics.width;
+      
+      const midX = measureStart.x + dx / 2;
+      const midY = measureStart.y + dy / 2;
+
+      measureCtx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      measureCtx.fillRect(midX - textWidth/2 - 6, midY - 12 - 4, textWidth + 12, 22);
+      
+      measureCtx.fillStyle = '#1e3a8a';
+      measureCtx.textAlign = 'center';
+      measureCtx.textBaseline = 'middle';
+      measureCtx.fillText(text, midX, midY - 2);
+
+      measureCtx.beginPath();
+      measureCtx.arc(measureStart.x, measureStart.y, 4, 0, Math.PI * 2);
+      measureCtx.arc(current.x, current.y, 4, 0, Math.PI * 2);
+      measureCtx.fillStyle = '#dc2626';
+      measureCtx.fill();
+    });
+
+    measureCanvas.addEventListener('mouseup', () => { isMeasuring = false; });
+    measureCanvas.addEventListener('mouseleave', () => { isMeasuring = false; });
+
+    updateZoomLabel();
+    updateNavButtons();
+  </script>
+</body>
+</html>
