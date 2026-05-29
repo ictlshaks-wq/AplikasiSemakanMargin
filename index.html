@@ -18,6 +18,7 @@
       --primary: #2563eb;
       --primary-hover: #1d4ed8;
       --danger: #dc2626;
+      --success: #10b981;
       --grid: rgba(37, 99, 235, .35);
       --margin: rgba(220, 38, 38, .95);
     }
@@ -372,7 +373,7 @@
       border-radius: 8px;
       background: #fef2f2;
       display: none;
-      max-height: 450px;
+      max-height: 550px;
       overflow-y: auto;
     }
     
@@ -528,12 +529,12 @@
       <button id="autoCheckBtn" class="btn-auto-check" onclick="runAutoCheck()">Semak Automatik Semua Halaman</button>
 
       <div id="reportContainer" class="report-box">
-        <h3>Pelaporan Semakan Margin</h3>
+        <h3 id="reportTitle">Pelaporan Semakan Margin</h3>
         <div id="reportList" class="report-list"></div>
         
         <!-- BAHAGIAN ULASAN (SEBELUM MUAT TURUN) -->
         <div id="reportForm" style="display: none; margin-top: 15px; border-top: 1px dashed #fca5a5; padding-top: 15px;">
-          <h4 style="font-size: 13px; margin: 0 0 10px; color: #991b1b;">Maklumat Laporan & Ulasan</h4>
+          <h4 id="reportFormTitle" style="font-size: 13px; margin: 0 0 10px; color: #991b1b;">Maklumat Laporan & Ulasan</h4>
           
           <label for="reviewerName" style="margin-top: 0; font-size: 12px;">Disemak Oleh</label>
           <input type="text" id="reviewerName" placeholder="Nama Penyemak / Pemeriksa" style="padding: 8px; margin-bottom: 8px;" />
@@ -859,9 +860,11 @@
       const reportList = document.getElementById('reportList');
       reportList.innerHTML = '';
       const reportContainer = document.getElementById('reportContainer');
+      const reportTitle = document.getElementById('reportTitle');
+      const reportFormTitle = document.getElementById('reportFormTitle');
+      const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+      
       reportContainer.style.display = 'block';
-      reportContainer.style.borderColor = '#fca5a5';
-      reportContainer.style.backgroundColor = '#fef2f2';
 
       const excludeInput = document.getElementById('excludePages').value;
       const excludedPages = parseExcludedPages(excludeInput);
@@ -1012,21 +1015,46 @@
         await new Promise(res => setTimeout(res, 5));
       }
 
+      // Selaraskan tema warna kotak ulasan mengikut status kejayaan semakan
       if (!issuesFound) {
-        reportContainer.style.borderColor = '#6ee7b7';
+        reportContainer.style.borderColor = '#6ee7b7'; // Hijau lembut
         reportContainer.style.backgroundColor = '#ecfdf5';
+        reportTitle.style.color = '#047857';
+        if(reportFormTitle) {
+          reportFormTitle.style.color = '#047857';
+          reportFormTitle.textContent = 'Maklumat Laporan & Pengesahan Lulus';
+        }
         
+        // Tukar warna butang muat turun kepada hijau (Lulus)
+        downloadPdfBtn.style.backgroundColor = 'var(--success)';
+        downloadPdfBtn.textContent = 'Muat Turun Sijil & Laporan Lulus';
+
         const successCard = document.createElement('div');
         successCard.className = 'success-card';
-        successCard.innerHTML = `&#10004; Tiada masalah margin ditemui pada ${checkedPagesCount} halaman yang disemak.`;
+        successCard.innerHTML = `&#10004; Tahniah! Tiada masalah margin ditemui pada kesemua ${checkedPagesCount} halaman yang disemak.`;
         reportList.appendChild(successCard);
       } else {
-        if(document.getElementById('reportForm')) {
-            document.getElementById('reportForm').style.display = 'block';
-            document.getElementById('reviewDate').valueAsDate = new Date();
+        reportContainer.style.borderColor = '#fca5a5'; // Merah lembut
+        reportContainer.style.backgroundColor = '#fef2f2';
+        reportTitle.style.color = 'var(--danger)';
+        if(reportFormTitle) {
+          reportFormTitle.style.color = '#991b1b';
+          reportFormTitle.textContent = 'Maklumat Laporan & Ulasan Pindaan';
         }
-        document.getElementById('downloadPdfBtn').style.display = 'block';
+
+        // Tukar warna butang muat turun kepada merah (Pindaan)
+        downloadPdfBtn.style.backgroundColor = 'var(--danger)';
+        downloadPdfBtn.textContent = 'Muat Turun PDF Laporan & Bertanda';
       }
+
+      // Butang ulasan dan muat turun sentiasa dipaparkan walau apa pun keputusan semakan
+      if(document.getElementById('reportForm')) {
+          document.getElementById('reportForm').style.display = 'block';
+          // Garis pemisah ditukarkan warna mengikut keputusan
+          document.getElementById('reportForm').style.borderTopColor = issuesFound ? '#fca5a5' : '#6ee7b7';
+          document.getElementById('reviewDate').valueAsDate = new Date();
+      }
+      downloadPdfBtn.style.display = 'block';
 
       if (excludedPages.size > 0) {
          const infoCard = document.createElement('div');
@@ -1041,7 +1069,7 @@
 
     // --- FUNGSI JANA PDF LAPORAN & ANOTASI ---
     async function downloadAnnotatedPDF() {
-      if (!originalPdfBytes || globalScanResults.length === 0) return;
+      if (!originalPdfBytes) return;
       
       const btn = document.getElementById('downloadPdfBtn');
       const originalText = btn.textContent;
@@ -1053,26 +1081,29 @@
         const originalDoc = await PDFDocument.load(originalPdfBytes);
         const newDoc = await PDFDocument.create();
         
-        const errorPageIndices = globalScanResults.map(result => result.pageNum - 1);
-        const copiedPages = await newDoc.copyPages(originalDoc, errorPageIndices);
+        // Salin halaman yang bermasalah sahaja jika ada ralat
+        if (globalScanResults.length > 0) {
+          const errorPageIndices = globalScanResults.map(result => result.pageNum - 1);
+          const copiedPages = await newDoc.copyPages(originalDoc, errorPageIndices);
 
-        copiedPages.forEach((page, index) => {
-          newDoc.addPage(page);
-          const result = globalScanResults[index];
-          for (const box of result.boxes) {
-            if (box.type === 'text') {
-              page.drawRectangle({
-                x: box.x, y: box.y, width: box.w, height: box.h,
-                borderColor: rgb(1, 0, 0), borderWidth: 1.5
-              });
-            } else if (box.type === 'visual') {
-              page.drawRectangle({
-                x: box.x, y: box.y, width: box.w, height: box.h,
-                color: rgb(1, 0, 0), opacity: 0.15
-              });
+          copiedPages.forEach((page, index) => {
+            newDoc.addPage(page);
+            const result = globalScanResults[index];
+            for (const box of result.boxes) {
+              if (box.type === 'text') {
+                page.drawRectangle({
+                  x: box.x, y: box.y, width: box.w, height: box.h,
+                  borderColor: rgb(1, 0, 0), borderWidth: 1.5
+                });
+              } else if (box.type === 'visual') {
+                page.drawRectangle({
+                  x: box.x, y: box.y, width: box.w, height: box.h,
+                  color: rgb(1, 0, 0), opacity: 0.15
+                });
+              }
             }
-          }
-        });
+          });
+        }
 
         const font = await newDoc.embedFont(StandardFonts.Helvetica);
         const boldFont = await newDoc.embedFont(StandardFonts.HelveticaBold);
@@ -1085,7 +1116,7 @@
         // Dapat maklumat daripada UI input
         const reviewerName = document.getElementById('reviewerName').value || '-';
         const reviewDate = document.getElementById('reviewDate').value || '-';
-        const reviewComment = document.getElementById('reviewComment').value || 'Tiada ulasan';
+        const reviewComment = document.getElementById('reviewComment').value || 'Tiada ulasan tambahan';
 
         // Cetak Tajuk & Maklumat Penyemak
         coverPage.drawText('LAPORAN SEMAKAN FORMAT TESIS', { x: 50, y: yPos, size: 18, font: boldFont, color: rgb(0.1, 0.3, 0.8) });
@@ -1131,22 +1162,35 @@
         coverPage.drawLine({ start: { x: 50, y: yPos }, end: { x: width - 50, y: yPos }, thickness: 1, color: rgb(0.8, 0.8, 0.8) });
         yPos -= 25;
 
-        // Maklumat Ralat
-        coverPage.drawText(`Jumlah ralat ditemui: ${globalScanResults.length} halaman`, { x: 50, y: yPos, size: 12, font: boldFont, color: rgb(0.8, 0.1, 0.1) });
-        yPos -= 15;
-        coverPage.drawText('Sila rujuk muka surat lampiran berkotak merah untuk memperbetulkan margin.', { x: 50, y: yPos, size: 10, font: font, color: rgb(0.4, 0.4, 0.4) });
-        yPos -= 30;
+        // Maklumat Keputusan Imbasan
+        if (globalScanResults.length > 0) {
+          coverPage.drawText(`Jumlah ralat ditemui: ${globalScanResults.length} halaman`, { x: 50, y: yPos, size: 12, font: boldFont, color: rgb(0.8, 0.1, 0.1) });
+          yPos -= 15;
+          coverPage.drawText('Sila rujuk muka surat lampiran berkotak merah untuk memperbetulkan margin.', { x: 50, y: yPos, size: 10, font: font, color: rgb(0.4, 0.4, 0.4) });
+          yPos -= 30;
 
-        // Senarai Halaman Ralat
-        for (const result of globalScanResults) {
-          if (yPos < 50) {
-            coverPageIndex++;
-            coverPage = newDoc.insertPage(coverPageIndex);
-            yPos = height - 60;
+          // Senarai Halaman Ralat
+          for (const result of globalScanResults) {
+            if (yPos < 50) {
+              coverPageIndex++;
+              coverPage = newDoc.insertPage(coverPageIndex);
+              yPos = height - 60;
+            }
+            const text = `Halaman Asal ${result.pageNum}: Terkeluar ${result.issues.join(', ')}`;
+            coverPage.drawText(text, { x: 50, y: yPos, size: 11, font: font, color: rgb(0.1, 0.1, 0.1) });
+            yPos -= 18;
           }
-          const text = `Halaman Asal ${result.pageNum}: Terkeluar ${result.issues.join(', ')}`;
-          coverPage.drawText(text, { x: 50, y: yPos, size: 11, font: font, color: rgb(0.1, 0.1, 0.1) });
-          yPos -= 18;
+        } else {
+          // Cetakan Lulus Tanpa Ralat (Sijil Pengesahan Lulus)
+          coverPage.drawText('Keputusan Semakan: FORMAT MARGIN LULUS', { x: 50, y: yPos, size: 12, font: boldFont, color: rgb(0.1, 0.6, 0.1) });
+          yPos -= 15;
+          coverPage.drawText('Pengesahan: Format sempadan margin bagi semua halaman adalah mematuhi syarat.', { x: 50, y: yPos, size: 10, font: font, color: rgb(0.1, 0.5, 0.1) });
+          yPos -= 30;
+
+          // Letakkan ulasan rasmi kelulusan
+          coverPage.drawText('Dokumen ini telah disemak secara digital dan disahkan bebas daripada sebarang', { x: 50, y: yPos, size: 11, font: font, color: rgb(0.3, 0.3, 0.3) });
+          yPos -= 15;
+          coverPage.drawText('pelanggaran margin penulisan penyelidikan.', { x: 50, y: yPos, size: 11, font: font, color: rgb(0.3, 0.3, 0.3) });
         }
 
         const modifiedPdfBytes = await newDoc.save();
@@ -1154,7 +1198,10 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'Laporan_Semakan_Tesis_Ringkas.pdf';
+        
+        // Namakan fail bersesuaian dengan status semakan
+        a.download = globalScanResults.length > 0 ? 'Laporan_Semakan_Tesis_Ringkas.pdf' : 'Sijil_Semakan_Format_Lulus.pdf';
+        
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
