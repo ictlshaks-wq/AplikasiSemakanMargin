@@ -4,6 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Aplikasi Semakan Margin Penulisan Penyelidikan</title>
+
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-S72HX7Y4P9"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-S72HX7Y4P9');
+  </script>
+
   <!-- PDF.js untuk paparan dan semakan -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <!-- PDF-lib untuk memodifikasi dan memuat turun PDF baharu -->
@@ -720,6 +730,7 @@
     document.getElementById('fileInput').addEventListener('change', async (event) => {
       const file = event.target.files[0];
       if (!file) return;
+      gtag('event', 'pdf_uploaded');
       if (file.type !== 'application/pdf') {
         alert('Sila pilih fail PDF sahaja.');
         return;
@@ -922,6 +933,7 @@
 
     // FUNGSI SEMAKAN AUTOMATIK KESELURUHAN PDF
     async function runAutoCheck() {
+      gtag('event', 'auto_check_clicked');
       if (!pdfDoc) {
         alert('Sila muat naik fail PDF terlebih dahulu.');
         return;
@@ -1157,6 +1169,7 @@
 
     // --- FUNGSI JANA PDF LAPORAN & ANOTASI ---
     async function downloadAnnotatedPDF() {
+      gtag('event', 'pdf_downloaded');
       if (!originalPdfBytes) return;
       
       const btn = document.getElementById('downloadPdfBtn');
